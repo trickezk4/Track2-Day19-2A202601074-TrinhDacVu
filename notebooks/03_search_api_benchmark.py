@@ -29,24 +29,36 @@ import httpx
 # này khởi động uvicorn ở background subprocess và đợi `/healthz` trả ready.
 
 # %%
+import socket
+import sys
+
+
+def get_free_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+PORT = get_free_port()
 ROOT = Path(_setup.__file__).resolve().parent.parent
 proc = subprocess.Popen(
-    ["uvicorn", "app.main:app", "--port", "8000", "--log-level", "warning"],
+    [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", str(PORT), "--log-level", "warning"],
     cwd=str(ROOT),
 )
 
 # Đợi server up + warm (Searcher.from_corpus loads embeddings + indexes 1000 docs)
-URL = "http://localhost:8000"
-for _ in range(60):
+URL = f"http://127.0.0.1:{PORT}"
+for _ in range(180):
     try:
         r = httpx.get(f"{URL}/healthz", timeout=2.0)
         if r.status_code == 200 and r.json().get("ready"):
             break
-    except httpx.HTTPError:
+    except Exception:
         pass
     time.sleep(1)
 else:
-    raise RuntimeError("API didn't become ready within 60s")
+    proc.terminate()
+    raise RuntimeError(f"API didn't become ready on port {PORT} within 180s")
 
 print(httpx.get(f"{URL}/healthz").json())
 
@@ -54,7 +66,7 @@ print(httpx.get(f"{URL}/healthz").json())
 # ## 2. Single query — kiểm tra response shape
 
 # %%
-r = httpx.get(f"{URL}/search", params={"q": "cloud computing tự động mở rộng", "mode": "hybrid"})
+r = httpx.get(f"{URL}/search", params={"q": "cloud computing tự động mở rộng", "mode": "hybrid"}, timeout=30.0)
 r.raise_for_status()
 body = r.json()
 print(f"latency_ms: {body['latency_ms']:.1f}")
@@ -91,7 +103,7 @@ def benchmark_mode(mode: str, reps: int = 2) -> dict[str, float]:
     for _ in range(reps):
         for q in golden:
             t0 = time.perf_counter()
-            r = httpx.get(f"{URL}/search", params={"q": q["query"], "mode": mode})
+            r = httpx.get(f"{URL}/search", params={"q": q["query"], "mode": mode}, timeout=30.0)
             wall_latencies.append((time.perf_counter() - t0) * 1000)
             server_latencies.append(r.json()["latency_ms"])
     return {

@@ -17,6 +17,8 @@ __pycache__/
 data/corpus_vn.jsonl
 data/golden_set.jsonl
 data/qdrant_storage/
+data/.vectors*
+data/*.npy
 .feast/
 app/feast_repo/data/
 app/feast_repo/registry.db

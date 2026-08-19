@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+import numpy as np
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, PointStruct, VectorParams
 from rank_bm25 import BM25Okapi
@@ -111,19 +112,45 @@ class Searcher:
             vectors_config=VectorParams(size=self.embedder.dim, distance=Distance.COSINE),
         )
 
+        # Check if vectors are already cached on disk for the 1000 docs
+        cache_path = Path(__file__).resolve().parent.parent / "data" / f".vectors_{self.embedder.backend}_{self.embedder.dim}.npy"
+        if cache_path.exists() and len(self.docs) == 1000:
+            try:
+                cached_vecs = np.load(cache_path)
+                if len(cached_vecs) == len(self.docs):
+                    points = [
+                        PointStruct(
+                            id=i,
+                            vector=cached_vecs[i].tolist(),
+                            payload={"doc_id": d["doc_id"], "title": d["title"], "text": d["text"]},
+                        )
+                        for i, d in enumerate(self.docs)
+                    ]
+                    self.client.upsert(collection_name=COLLECTION, points=points)
+                    return
+            except Exception:
+                pass
+
         # Embed in batches of 64 — fastembed is CPU-bound and that batch size is sweet spot.
         BATCH = 64
         points: list[PointStruct] = []
+        all_vecs: list[np.ndarray] = []
         for start in range(0, len(self.docs), BATCH):
             batch = self.docs[start:start + BATCH]
             texts = [d["title"] + " " + d["text"] for d in batch]
             vectors = list(self.embedder.embed(texts))
+            all_vecs.extend(vectors)
             for i, (d, v) in enumerate(zip(batch, vectors)):
                 points.append(PointStruct(
                     id=start + i,
                     vector=v.tolist(),
                     payload={"doc_id": d["doc_id"], "title": d["title"], "text": d["text"]},
                 ))
+        if all_vecs and len(all_vecs) == len(self.docs):
+            try:
+                np.save(cache_path, np.array(all_vecs, dtype=np.float32))
+            except Exception:
+                pass
         self.client.upsert(collection_name=COLLECTION, points=points)
 
     # ── retrieval ───────────────────────────────────────────────────────
