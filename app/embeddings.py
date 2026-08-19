@@ -100,8 +100,28 @@ class Embedder:
             self._impl = OpenAI()
         return self._impl
 
+    _cache: dict[str, np.ndarray] = {}
+
     def embed(self, texts: Iterable[str]) -> Iterator[np.ndarray]:
         texts = list(texts)
+        if len(texts) == 1:
+            t = texts[0]
+            if t in self._cache:
+                yield self._cache[t]
+                return
+            impl = self._load()
+            p = self.spec.provider
+            if p == "fastembed":
+                v = next(impl.embed(texts))
+            elif p == "sentence-transformers":
+                v = np.asarray(impl.encode(texts, normalize_embeddings=True)[0], dtype=np.float32)
+            else:  # openai
+                resp = impl.embeddings.create(model=self.spec.model, input=texts)
+                v = np.asarray(resp.data[0].embedding, dtype=np.float32)
+            self._cache[t] = v
+            yield v
+            return
+
         impl = self._load()
         p = self.spec.provider
         if p == "fastembed":

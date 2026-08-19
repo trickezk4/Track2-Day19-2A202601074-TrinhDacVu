@@ -12,13 +12,13 @@
 > `paraphrase` / `mixed`), và tại sao? Khi nào bạn **không** dùng hybrid
 > (i.e. khi nào pure BM25 hoặc pure vector là lựa chọn đúng)?
 
-- **Exact queries:** Pure BM25 & Hybrid dẫn đầu (P@10 = 96.7% vs Semantic 80.0%) do BM25 khớp chính xác từ khóa, thuật ngữ chuyên ngành và tên riêng mà không bị suy hao ngữ nghĩa.
-- **Paraphrase queries:** Hybrid (32.0%) và BM25 (33.3%) vượt trội Semantic (24.0%) nhờ RRF dung hòa giữa ngữ nghĩa đồng nghĩa của dense vector và từ khóa nòng cốt.
-- **Mixed queries:** Hybrid thắng tuyệt đối (P@10 = 100.0% vs Semantic 98.5%, BM25 97.0%), chứng minh ưu thế vượt trội khi truy vấn vừa có từ khóa đặc thù vừa mang ngữ cảnh rộng.
+- **Exact queries:** Pure BM25 & Hybrid dẫn đầu (P@10 = 96.7% vs Semantic 80.0%) do BM25 khớp chính xác từ khóa, thuật ngữ chuyên ngành và tên riêng mà không bị mất ngữ nghĩa.
+- **Paraphrase queries:** Hybrid (32.0%) và BM25 (33.3%) vượt trội Semantic (24.0%) nhờ RRF kết hợp giữa ngữ nghĩa đồng nghĩa của dense vector và từ khóa nòng cốt.
+- **Mixed queries:** Hybrid thắng (P@10 = 100.0% vs Semantic 98.5%, BM25 97.0%) => từ khóa đặc thù vừa mang ngữ cảnh rộng.
 
 **Khi nào KHÔNG dùng hybrid:**
 
-1. Khi hệ thống yêu cầu SLA siêu thấp (<5ms) hoặc tài nguyên phần cứng hạn chế (pure BM25 nhẹ hơn và không tốn chi phí inference embedding).
+1. Khi hệ thống yêu cầu SLA siêu thấp (<5ms) hoặc tài nguyên phần cứng hạn chế (BM25 nhẹ hơn và không tốn chi phí inference embedding).
 2. Khi dữ liệu tra cứu là SKU, serial code, định danh chính xác (pure BM25 là tối ưu).
 3. Khi tìm kiếm cross-lingual/đa ngôn ngữ hoàn toàn khác biệt từ vựng (pure vector phát huy tối đa sức mạnh).
 
