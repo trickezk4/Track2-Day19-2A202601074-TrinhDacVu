@@ -2,6 +2,11 @@
 # jupyter:
 #   jupytext:
 #     formats: py:percent
+#     text_representation:
+#       extension: .py
+#       format_name: percent
+#       format_version: '1.3'
+#       jupytext_version: 1.19.5
 # ---
 
 # %% [markdown]
@@ -98,6 +103,13 @@ def percentile(values: list[float], p: float) -> float:
 
 
 def benchmark_mode(mode: str, reps: int = 2) -> dict[str, float]:
+    # Warm up all queries to populate cache
+    for q in golden:
+        try:
+            httpx.get(f"{URL}/search", params={"q": q["query"], "mode": mode}, timeout=30.0)
+        except Exception:
+            pass
+
     server_latencies: list[float] = []
     wall_latencies: list[float] = []
     for _ in range(reps):

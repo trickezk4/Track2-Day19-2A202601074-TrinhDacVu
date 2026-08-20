@@ -36,19 +36,6 @@ async def lifespan(app: FastAPI):
             f"{CORPUS_PATH} missing. Run `make seed` first."
         )
     _searcher = Searcher.from_corpus(CORPUS_PATH)
-
-    # Pre-warm all queries from golden set to populate Embedder cache
-    golden_path = ROOT / "data" / "golden_set.jsonl"
-    if golden_path.exists():
-        import json
-        try:
-            with open(golden_path, "r", encoding="utf-8") as f:
-                for line in f:
-                    q = json.loads(line).get("query")
-                    if q:
-                        _searcher.search(q, mode="hybrid", top_k=1)
-        except Exception:
-            pass
     yield
     _searcher = None
 
